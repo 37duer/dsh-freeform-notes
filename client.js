@@ -21,8 +21,8 @@ window.__ModuleLoader__.load({
       clear: '清空内容',
       clearTitle: '清空速记内容',
       push: '推送到对话',
-      pushTitle: '追加到对话输入框，不自动发送',
-      pushOk: '已追加到对话输入框',
+      pushTitle: '追加到对话输入框并自动清空速记，不自动发送',
+      pushOk: '已推送到对话，速记已清空',
       pushFail: '推送失败：对话输入框不可用',
     };
 
@@ -38,8 +38,8 @@ window.__ModuleLoader__.load({
       clear: 'Clear',
       clearTitle: 'Clear the note',
       push: 'Push to chat',
-      pushTitle: 'Append to the chat input; nothing is sent',
-      pushOk: 'Added to the chat input',
+      pushTitle: 'Append to the chat input and clear the note; nothing is sent',
+      pushOk: 'Pushed to chat; note cleared',
       pushFail: 'Push failed: chat input unavailable',
     };
 
@@ -507,10 +507,17 @@ window.__ModuleLoader__.load({
       const handlePush = React.useCallback(function () {
         const text = latest.current.text;
         if (text.length === 0) return;
-        // Appends to the composer draft at its caret; never sends, never clears.
+        // Appends to the composer draft at its caret; never sends.
         const ok = appendToComposer(props.ctx, props.scope, text);
-        showFlash(ok ? t('pushOk') : t('pushFail'));
-      }, [props.ctx, props.scope, showFlash, t]);
+        if (ok) {
+          // Push landed: clear the note and persist the empty state.
+          commit('');
+          showFlash(t('pushOk'));
+        } else {
+          // Keep the note when the push fails so nothing is lost.
+          showFlash(t('pushFail'));
+        }
+      }, [props.ctx, props.scope, showFlash, t, commit]);
 
       const hint = status === 'error' ? t('hintError') : t('hint');
       const metaText = flash !== null
