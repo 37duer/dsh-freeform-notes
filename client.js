@@ -14,12 +14,16 @@ window.__ModuleLoader__.load({
       editor: '速记内容',
       placeholder: '随手记点什么……',
       desc: '随手记录文字，内容保存在当前浏览器中',
-      saved: '已保存',
-      saving: '保存中…',
       error: '未能保存：浏览器存储不可用或已满',
       hint: '内容保存在本浏览器',
       hintError: '内容仅保留在当前页面',
       chars: '{n} 字符',
+      clear: '清空内容',
+      clearTitle: '清空速记内容',
+      push: '推送到对话',
+      pushTitle: '追加到对话输入框，不自动发送',
+      pushOk: '已追加到对话输入框',
+      pushFail: '推送失败：对话输入框不可用',
     };
 
     const en = {
@@ -27,12 +31,16 @@ window.__ModuleLoader__.load({
       editor: 'Note text',
       placeholder: 'Jot something down…',
       desc: 'A scratch pad whose text is saved in this browser',
-      saved: 'Saved',
-      saving: 'Saving…',
       error: 'Not saved: this browser’s storage is unavailable or full',
       hint: 'Saved in this browser',
       hintError: 'Kept on this page only',
       chars: '{n} chars',
+      clear: 'Clear',
+      clearTitle: 'Clear the note',
+      push: 'Push to chat',
+      pushTitle: 'Append to the chat input; nothing is sent',
+      pushOk: 'Added to the chat input',
+      pushFail: 'Push failed: chat input unavailable',
     };
 
     const CSS = `
@@ -79,24 +87,54 @@ window.__ModuleLoader__.load({
   font-size: 11px;
   line-height: 16px;
 }
-.dsh-notes-tab-status {
+.dsh-notes-tab-meta {
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  color: var(--dsw-alias-label-secondary);
 }
-.dsh-notes-tab-status[data-state="error"] {
+.dsh-notes-tab-meta[data-state="error"] {
   color: var(--dsw-alias-state-error-primary);
 }
-.dsh-notes-tab-meta {
+.dsh-notes-tab-actions {
+  display: flex;
   flex: none;
-  max-width: 60%;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  align-items: center;
+  gap: 8px;
+}
+.dsh-notes-tab-btn {
+  flex: none;
+  margin: 0;
+  padding: 2px 10px;
+  border: 1px solid var(--dsw-alias-label-secondary);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 11px;
+  line-height: 16px;
+  cursor: pointer;
+}
+.dsh-notes-tab-btn:hover:not(:disabled) {
+  color: var(--dsw-alias-label-primary);
+  border-color: var(--dsw-alias-label-primary);
+}
+.dsh-notes-tab-btn:focus-visible {
+  outline-style: solid;
+  outline-offset: 1px;
+}
+.dsh-notes-tab-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.dsh-notes-tab-btn-primary {
+  color: var(--dsw-alias-state-business-primary);
+  border-color: var(--dsw-alias-state-business-primary);
+}
+.dsh-notes-tab-btn-primary:hover:not(:disabled) {
+  color: var(--dsw-alias-state-business-primary);
+  border-color: var(--dsw-alias-state-business-primary);
 }
 .dsh-notes-tab-sr {
   position: absolute;
@@ -186,6 +224,130 @@ window.__ModuleLoader__.load({
       return null;
     }
 
+    // ----- Push note text into the DSH conversation composer (draft only) -----
+    // Mirrors dsh-better-sidebar's appendToDraft path: the conversation service
+    // is resolved lazily through ctx.get, the session scope is the tab's own
+    // props.scope.sessionId, and setDraft is the input machine's single public
+    // write path. A missing service degrades to a failed push, never a crash.
+
+    /**
+     * Splice `text` into `draft` at `caret` (replacing any live selection) with
+     * whitespace-aware joins and report the caret position right after the
+     * inserted text. `caret === null` (position unknown) appends at the end.
+     */
+    function spliceInsert(draft, text, caret) {
+      if (caret === null || draft === '') {
+        const next = draft.trim() === '' ? text : draft + (/\s$/.test(draft) ? '' : ' ') + text;
+        return { draft: next, caretAfter: next.length };
+      }
+      const prefix = draft.slice(0, caret.start);
+      const suffix = draft.slice(caret.end);
+      if (prefix === '' && suffix === '') return { draft: text, caretAfter: text.length };
+      const left = prefix === '' || /\s$/.test(prefix) ? '' : ' ';
+      return {
+        draft: prefix + left + text + (suffix === '' || /^\s/.test(suffix) || /\s$/.test(text) ? '' : ' ') + suffix,
+        caretAfter: prefix.length + left.length + text.length,
+      };
+    }
+
+    /**
+     * Locate the composer <textarea> in the conversation column: prefer the
+     * data-phase-tagged textarea (the composer's marker), falling back to any
+     * textarea in the column, then to a bare data-phase textarea.
+     */
+    function findComposerTextarea() {
+      if (typeof document === 'undefined') return null;
+      const column = document.querySelector('#root [data-slot="conversation"]');
+      const find = function (scope) {
+        return scope.querySelector('textarea[data-phase]') || scope.querySelector('textarea');
+      };
+      return column !== null ? find(column) : document.querySelector('textarea[data-phase]');
+    }
+
+    /**
+     * Resolve the composer's live caret from its DOM <textarea>. The value-sync
+     * check (el.value === draft) discards stale or wrong-composer reads.
+     * Returns null when the composer is missing, disabled/read-only, out of
+     * sync with the store draft, or has no measurable selection.
+     */
+    function probeComposerCaret(draft) {
+      const el = findComposerTextarea();
+      if (el === null || el.disabled || el.readOnly) return null;
+      if (el.value !== draft) return null;
+      let start = el.selectionStart;
+      let end = el.selectionEnd;
+      if (typeof start !== 'number' || typeof end !== 'number') return null;
+      if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+      start = Math.max(0, Math.min(start, draft.length));
+      end = Math.max(start, Math.min(end, draft.length));
+      return { start: start, end: end };
+    }
+
+    /**
+     * Restore the composer caret to `caretIndex` after a programmatic setDraft
+     * commit (a controlled textarea update resets the caret). Scheduled and
+     * retried across at most two animation frames, and only applied when the
+     * textarea still matches `expectedDraft`.
+     */
+    function placeComposerCaretAfterInsert(expectedDraft, caretIndex) {
+      let remaining = 2;
+      let scheduled = false;
+      const schedule = function (fn) {
+        if (scheduled) return;
+        scheduled = true;
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(fn);
+        else window.setTimeout(fn, 0);
+      };
+      const place = function () {
+        scheduled = false;
+        if (remaining <= 0) return;
+        remaining -= 1;
+        const el = findComposerTextarea();
+        if (el === null || el.disabled || el.readOnly) return;
+        if (el.value !== expectedDraft) {
+          schedule(place);
+          return;
+        }
+        const clamped = Math.max(0, Math.min(caretIndex, el.value.length));
+        el.setSelectionRange(clamped, clamped);
+      };
+      schedule(place);
+    }
+
+    /**
+     * Append `text` to the session's composer draft at the composer's live
+     * caret (falls back to appending at the end). Returns false — and logs —
+     * when the conversation service or the session scope is unavailable.
+     * Never sends: it only writes the draft.
+     */
+    function appendToComposer(ctx, scope, text) {
+      try {
+        if (scope === undefined || scope === null || typeof scope.sessionId !== 'string') {
+          console.warn('[dsh-freeform-notes] push skipped: no session scope');
+          return false;
+        }
+        const actx = ctx.sessions.scope(scope.sessionId);
+        if (actx === undefined) {
+          console.warn('[dsh-freeform-notes] push skipped: no session scope', scope.sessionId);
+          return false;
+        }
+        const conversation = ctx.get('conversation');
+        if (conversation === undefined) {
+          console.warn('[dsh-freeform-notes] push skipped: conversation service unavailable');
+          return false;
+        }
+        const input = conversation.input.for(actx);
+        const draft = input.state.getSnapshot().draft;
+        const result = spliceInsert(draft, text, probeComposerCaret(draft));
+        input.setDraft(result.draft);
+        placeComposerCaretAfterInsert(result.draft, result.caretAfter);
+        return true;
+      } catch (error) {
+        console.warn('[dsh-freeform-notes] push failed:', error);
+        return false;
+      }
+    }
+
     function useTranslator(ctx) {
       const subscribe = React.useCallback(function (callback) {
         return ctx.locale.subscribe(callback);
@@ -201,10 +363,12 @@ window.__ModuleLoader__.load({
       const [initial] = React.useState(readStored);
       const [state, setState] = React.useState(function () { return { text: initial.text }; });
       const [status, setStatus] = React.useState(initial.ok ? 'saved' : 'error');
+      const [flash, setFlash] = React.useState(null);
       const latest = React.useRef(state);
       const timer = React.useRef(null);
       const input = React.useRef(null);
       const caret = React.useRef(null);
+      const flashTimer = React.useRef(null);
       latest.current = state;
 
       const write = React.useCallback(function (next) {
@@ -319,8 +483,39 @@ window.__ModuleLoader__.load({
         caret.current = null;
       });
 
-      const statusText = status === 'saving' ? t('saving') : status === 'error' ? t('error') : t('saved');
+      const showFlash = React.useCallback(function (message) {
+        setFlash(message);
+        if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
+        flashTimer.current = window.setTimeout(function () {
+          flashTimer.current = null;
+          setFlash(null);
+        }, 1600);
+      }, []);
+
+      React.useEffect(function () {
+        return function () {
+          if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
+        };
+      }, []);
+
+      const handleClear = React.useCallback(function () {
+        if (latest.current.text.length === 0) return;
+        commit('');
+        if (input.current !== null) input.current.focus();
+      }, [commit]);
+
+      const handlePush = React.useCallback(function () {
+        const text = latest.current.text;
+        if (text.length === 0) return;
+        // Appends to the composer draft at its caret; never sends, never clears.
+        const ok = appendToComposer(props.ctx, props.scope, text);
+        showFlash(ok ? t('pushOk') : t('pushFail'));
+      }, [props.ctx, props.scope, showFlash, t]);
+
       const hint = status === 'error' ? t('hintError') : t('hint');
+      const metaText = flash !== null
+        ? flash
+        : hint + ' · ' + t('chars', { n: charCount(state.text) });
 
       return h('div', { className: 'dsh-notes-tab' },
         h('style', { key: 'style' }, CSS),
@@ -340,18 +535,32 @@ window.__ModuleLoader__.load({
         }),
         h('div', { key: 'foot', className: 'dsh-notes-tab-foot' },
           h('span', {
-            key: 'status',
-            className: 'dsh-notes-tab-status',
+            key: 'meta',
+            className: 'dsh-notes-tab-meta',
             'data-state': status,
-            title: statusText,
-          }, statusText),
+          }, metaText),
           h('span', {
             key: 'alert',
             className: 'dsh-notes-tab-sr',
             role: 'alert',
           }, status === 'error' ? t('error') : ''),
-          h('span', { key: 'meta', className: 'dsh-notes-tab-meta' },
-            hint + ' · ' + t('chars', { n: charCount(state.text) }),
+          h('div', { key: 'actions', className: 'dsh-notes-tab-actions' },
+            h('button', {
+              key: 'clear',
+              type: 'button',
+              className: 'dsh-notes-tab-btn',
+              title: t('clearTitle'),
+              disabled: state.text.length === 0,
+              onClick: handleClear,
+            }, t('clear')),
+            h('button', {
+              key: 'push',
+              type: 'button',
+              className: 'dsh-notes-tab-btn dsh-notes-tab-btn-primary',
+              title: t('pushTitle'),
+              disabled: state.text.length === 0,
+              onClick: handlePush,
+            }, t('push')),
           ),
         ),
       );
