@@ -1,7 +1,7 @@
 {
   "name": "@local/dsh-freeform-notes",
-  "version": "1.0.0",
-  "description": "Freeform scratch-pad Notes tab (速记) for the DSH bottom workbench: jot text with debounced localStorage autosave, cross-tab sync, and grapheme-aware character count.",
+  "version": "1.1.0",
+  "description": "Freeform scratch-pad Notes tab (速记) for the DSH bottom workbench: jot plain text with debounced localStorage autosave, cross-tab sync, grapheme-aware character count, and Markdown list/quote continuation on Enter (editing only, no rendering).",
   "license": "MIT",
   "author": "37duer",
   "repository": {

@@ -143,6 +143,49 @@ window.__ModuleLoader__.load({
       }
     }
 
+    // ----- Markdown editing aids (plain-text editing only; no rendering) -----
+    // List line: indent + quote prefix + spaces + (bullet | ordered marker) + spaces + content.
+    // Group 1 indent, 2 quote, 3 pad, 4 bullet, 5 task state, 6 ordered number,
+    // 7 ordered separator, 8 spaces after marker, 9 content.
+    const LIST_LINE = /^([ \t]*)((?:>[ \t]?)*)([ \t]*)(?:([-*+])(?:[ \t]+\[([ xX])\])?|(\d+)([.)]))([ \t]+)(.*)$/;
+    // Quote-only line: indent + one or more ">" markers + content.
+    const QUOTE_LINE = /^([ \t]*)((?:>[ \t]?)+)[ \t]*(.*)$/;
+
+    /**
+     * Decide what Enter should do on `line`.
+     * - { mode: 'continue', prefix }: insert a newline carrying the same Markdown prefix
+     *   (ordered lists increment, task items restart unchecked).
+     * - { mode: 'exit', keep }: drop the marker of an empty list/quote line.
+     * - null: let the browser insert a plain newline.
+     */
+    function planLineEnter(line) {
+      const list = LIST_LINE.exec(line);
+      if (list !== null) {
+        const indent = list[1];
+        const quote = list[2];
+        const pad = list[3];
+        const bullet = list[4];
+        const task = list[5];
+        const ordNum = list[6];
+        const ordSep = list[7];
+        const content = list[9];
+        if (content.trim() === '') return { mode: 'exit', keep: indent + quote };
+        const marker = bullet !== undefined
+          ? bullet + (task !== undefined ? ' [ ]' : '') + ' '
+          : String(parseInt(ordNum, 10) + 1) + ordSep + ' ';
+        return { mode: 'continue', prefix: indent + quote + pad + marker };
+      }
+      const quoteLine = QUOTE_LINE.exec(line);
+      if (quoteLine !== null) {
+        const indent = quoteLine[1];
+        const quote = quoteLine[2];
+        const content = quoteLine[3];
+        if (content.trim() === '') return { mode: 'exit', keep: indent };
+        return { mode: 'continue', prefix: indent + (/[ \t]$/.test(quote) ? quote : quote + ' ') };
+      }
+      return null;
+    }
+
     function useTranslator(ctx) {
       const subscribe = React.useCallback(function (callback) {
         return ctx.locale.subscribe(callback);
@@ -161,6 +204,7 @@ window.__ModuleLoader__.load({
       const latest = React.useRef(state);
       const timer = React.useRef(null);
       const input = React.useRef(null);
+      const caret = React.useRef(null);
       latest.current = state;
 
       const write = React.useCallback(function (next) {
@@ -236,6 +280,45 @@ window.__ModuleLoader__.load({
         }, SAVE_DELAY);
       }, [write]);
 
+      const handleKeyDown = React.useCallback(function (event) {
+        if (event.key !== 'Enter') return;
+        // Shift/Ctrl/Alt/Enter combos keep the browser default (plain newline etc.).
+        if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
+        // Never intercept Enter while an IME composition is in flight.
+        if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+        const el = input.current;
+        if (el === null || el.selectionStart !== el.selectionEnd) return;
+        const value = latest.current.text;
+        const pos = el.selectionStart;
+        const lineStart = value.lastIndexOf('\n', pos - 1) + 1;
+        let lineEnd = value.indexOf('\n', pos);
+        if (lineEnd === -1) lineEnd = value.length;
+        const plan = planLineEnter(value.slice(lineStart, lineEnd));
+        if (plan === null) return;
+        event.preventDefault();
+        let nextText;
+        let nextCaret;
+        if (plan.mode === 'exit') {
+          nextText = value.slice(0, lineStart) + plan.keep + value.slice(lineEnd);
+          nextCaret = lineStart + plan.keep.length;
+        } else {
+          nextText = value.slice(0, pos) + '\n' + plan.prefix + value.slice(pos);
+          nextCaret = pos + 1 + plan.prefix.length;
+        }
+        caret.current = nextCaret;
+        commit(nextText);
+      }, [commit]);
+
+      React.useLayoutEffect(function () {
+        if (caret.current === null) return;
+        const el = input.current;
+        if (el !== null) {
+          el.selectionStart = caret.current;
+          el.selectionEnd = caret.current;
+        }
+        caret.current = null;
+      });
+
       const statusText = status === 'saving' ? t('saving') : status === 'error' ? t('error') : t('saved');
       const hint = status === 'error' ? t('hintError') : t('hint');
 
@@ -253,6 +336,7 @@ window.__ModuleLoader__.load({
           onChange: function (event) {
             commit(event.target.value);
           },
+          onKeyDown: handleKeyDown,
         }),
         h('div', { key: 'foot', className: 'dsh-notes-tab-foot' },
           h('span', {

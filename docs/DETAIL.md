@@ -6,7 +6,8 @@ Adds a **Notes** tab to the bottom workbench of DSH (DeepSeek Harness) Web UI. E
 
 ## What you get
 
-- **Instant scratch pad** — the editor focuses itself as soon as the tab opens; a plain text area set in a code font, with nothing else in the way.
+- **Instant scratch pad** — the editor focuses itself as soon as the tab opens; a plain text area set in a code font, with nothing else in the way. The note is always shown as plain editable text — Markdown is never rendered or previewed.
+- **Markdown editing aids** — Enter continues the current Markdown prefix for you: `- ` / `* ` / `+ ` bullets, incrementing `1. ` numbers, task items restarting as `- [ ] `, `> ` quotes, and combinations like `> - ` (continued verbatim as `> - `; `> 1. ` steps to `> 2. `). Enter on an empty item drops its marker to exit the list or quote (`> - ` falls back to `> ` first), and Shift+Enter forces a plain newline.
 - **Autosave** — writes to `localStorage` 400 ms after you stop typing, and flushes immediately when the tab closes, the page hides, or the page unloads.
 - **Multi-tab sync** — edits made in another tab of the same browser arrive via the `storage` event. While a save is pending locally, the local text wins, so two tabs cannot clobber each other mid-keystroke.
 - **Honest character count** — counts user-perceived characters (graphemes) with `Intl.Segmenter`, so emoji and combining marks count once. Falls back to code-point counting where `Segmenter` is unavailable.
@@ -27,7 +28,7 @@ Adds a **Notes** tab to the bottom workbench of DSH (DeepSeek Harness) Web UI. E
 
 ## Limitations
 
-- One note per browser profile — no multiple notes, Markdown, search, or export yet.
+- One note per browser profile — no multiple notes, Markdown rendering/preview, search, or export yet (list and quote continuation aids are available while editing).
 - Storage is per-browser only; there is no cloud sync across devices.
 - In-tab UI strings are bundled for Chinese and English only; other locales fall back to English (listing metadata ships in 8 languages).
 - DSH is in developer preview. The plugin follows the client module contract (`window.__ModuleLoader__.load` + `apply(ctx)`) and the `betterSidebar.registerTab` API, and may need adjustments if those contracts change.
