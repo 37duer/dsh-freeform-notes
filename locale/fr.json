@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Onglet Notes",
+    "description": "Ajoute un onglet Notes à la barre d’onglets du plan de travail inférieur : ouvrez le panneau, puis choisissez Notes dans le menu « + » à droite de la barre (ou sa carte si le panneau est vide) pour noter du texte. Les notes sont enregistrées dans ce navigateur et restaurées au rechargement ; effacer les données du site les supprime.",
+    "detail": "docs/DETAIL.md"
+  }
+}

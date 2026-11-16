@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Notiz-Tab",
+    "description": "Fügt der Tableiste der unteren Werkbank einen Notiz-Tab hinzu: Panel öffnen, dann im „+“-Menü am rechten Ende der Tableiste „Notizen“ wählen (bei leerem Panel die Notiz-Karte anklicken) und jederzeit Notizen festhalten. Notizen werden in diesem Browser gespeichert und nach dem Neuladen wiederhergestellt; beim Löschen der Websitedaten werden sie mit entfernt.",
+    "detail": "docs/DETAIL.md"
+  }
+}

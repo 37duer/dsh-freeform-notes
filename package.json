@@ -1,0 +1,50 @@
+{
+  "name": "@local/dsh-freeform-notes",
+  "version": "1.0.0",
+  "description": "Freeform scratch-pad Notes tab (速记) for the DSH bottom workbench: jot text with debounced localStorage autosave, cross-tab sync, and grapheme-aware character count.",
+  "license": "MIT",
+  "author": "37duer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/37duer/dsh-freeform-notes.git"
+  },
+  "homepage": "https://github.com/37duer/dsh-freeform-notes#readme",
+  "bugs": {
+    "url": "https://github.com/37duer/dsh-freeform-notes/issues"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "notes",
+    "scratch-pad"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "docs",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "dsh-better-sidebar"
+      ]
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Notes tab",
+    "description": "Adds a Notes tab to the bottom workbench: expand the panel, then pick Notes from the tab strip’s + menu (or its card while the panel is empty) and jot text. Notes are saved in this browser and restored on reload; clearing site data removes them.",
+    "detail": "docs/DETAIL.md"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Pestaña de notas",
+    "description": "Añade una pestaña de notas a la barra del panel inferior: abre el panel y elige Notas en el menú «+» del extremo derecho de la barra (o su tarjeta si el panel está vacío) para anotar texto cuando quieras. Las notas se guardan en este navegador y se restauran al recargar; borrar los datos del sitio también las elimina.",
+    "detail": "docs/DETAIL.md"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Aba de notas",
+    "description": "Adiciona uma aba de notas à barra do painel inferior: abra o painel e escolha Notas no menu “+” à direita da barra (ou o cartão, se o painel estiver vazio) para anotar texto. As notas são salvas neste navegador e restauradas ao recarregar; limpar os dados do site as remove.",
+    "detail": "docs/DETAIL.md"
+  }
+}
