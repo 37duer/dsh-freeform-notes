@@ -1,3 +1,6 @@
 node_modules/
 *.log
 .DS_Store
+
+# WorkBuddy 工作区内部数据（含内部环境信息，禁止入库）
+.workbuddy/
