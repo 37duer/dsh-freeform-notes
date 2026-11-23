@@ -2,9 +2,7 @@
 
 DSH（DeepSeek Harness）Web UI 插件：在底部工作台的标签栏添加一个「速记」页签——展开底部面板，点标签栏右侧「+」并选择「速记」（面板为空时直接点「速记」卡片），即可随手记录文字。内容自动保存在当前浏览器（localStorage），刷新后仍在；清除站点数据会一并清除。
 
-![底部工作台中选中「速记」页签，编辑区位于面板内部](docs/preview.svg)
-
-作者：**37duer** · 版本 1.2.1 · 平台 web · 依赖 `dsh-better-sidebar` 与 locale 服务（client 注入）· 零依赖、免构建。
+![底部工作台中选中「速记」页签，编辑区位于面板内部](https://raw.githubusercontent.com/37duer/dsh-freeform-notes/refs/heads/main/%E6%BC%94%E7%A4%BA%E5%9B%BE.png)
 
 ## 功能
 
